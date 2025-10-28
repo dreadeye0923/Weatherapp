@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Clock App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+      .glass-effect { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+      .gradient-bg { background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #020617 100%); }
+      .pulse-glow { animation: pulseGlow 2s infinite; }
+      @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); } 50% { box-shadow: 0 0 25px rgba(59, 130, 246, 0.6); } }
+      .weather-card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+      .weather-card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); }
+      .loading-spinner { animation: spin 1s linear infinite; }
+      @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  </style>
+ </head>
+ <body class="min-h-screen gradient-bg text-white font-sans">
+  <main class="min-h-screen p-6 flex flex-col items-center">
+   <header class="w-full max-w-6xl mb-8 mt-4">
+    <h1 id="app-title" class="text-4xl font-bold text-center mb-2">Weather Clock</h1>
+    <p class="text-center text-gray-300">Real-time weather and time information</p>
+   </header>
+   <section class="w-full max-w-md mb-10">
+    <div class="glass-effect rounded-xl p-4">
+     <div class="flex items-center space-x-3">
+      <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+      <input type="text" id="city-search" placeholder="Search for a city..." class="flex-1 bg-transparent text-white placeholder-gray-400 outline-none" onkeypress="handleSearchKeypress(event)">
+      <button onclick="searchWeather()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors duration-300">Search</button>
+     </div>
+    </div>
+   </section>
+
+   <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <section class="lg:col-span-1">
+     <div class="glass-effect rounded-2xl p-8 weather-card-hover min-h-[250px] flex flex-col justify-center">
+      <h2 class="text-xl font-semibold mb-6 text-center">Current Time</h2>
+      <div class="text-center">
+       <div id="current-time" class="text-4xl font-mono font-bold mb-2 pulse-glow"></div>
+       <div id="current-date" class="text-lg text-gray-300 mb-4"></div>
+       <div id="timezone" class="text-sm text-gray-400"></div>
+      </div>
+     </div>
+    </section>
+    
+    <section class="lg:col-span-2">
+     <div class="glass-effect rounded-2xl p-8 weather-card-hover min-h-[250px]">
+      <div class="flex items-center justify-between mb-6">
+       <h2 class="text-xl font-semibold">Current Weather</h2>
+       <button onclick="searchWeather(true)" class="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-colors duration-300" id="refresh-btn">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+       </button>
+      </div>
+      
+      <div id="loading-state" class="hidden text-center py-8">
+       <div class="loading-spinner w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+       <p class="text-gray-300">Loading weather data...</p>
+      </div>
+
+      <div id="weather-content">
+       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="text-center md:text-left">
+         <div id="city-name" class="text-2xl font-bold mb-2"></div>
+         <div class="flex items-center justify-center md:justify-start mb-4">
+          <div id="weather-icon" class="weather-icon text-6xl mr-4"></div>
+          <div>
+           <div id="temperature" class="text-4xl font-bold"></div>
+           <div id="weather-description" class="text-gray-300 capitalize"></div>
+          </div>
+         </div>
+        </div>
+        
+        <div class="space-y-3">
+         <div class="flex justify-between items-center"><span class="text-gray-300">Feels like</span> <span id="feels-like" class="font-semibold"></span></div>
+         <div class="flex justify-between items-center"><span class="text-gray-300">Humidity</span> <span id="humidity" class="font-semibold"></span></div>
+         <div class="flex justify-between items-center"><span class="text-gray-300">Wind Speed</span> <span id="wind-speed" class="font-semibold"></span></div>
+         <div class="flex justify-between items-center"><span class="text-gray-300">Pressure</span> <span id="pressure" class="font-semibold"></span></div>
+        </div>
+       </div>
+      </div>
+     </div>
+    </section>
+   </div>
+
+   <section class="w-full max-w-6xl mt-8 mb-10">
+    <div class="glass-effect rounded-2xl p-8 weather-card-hover">
+     <h2 class="text-xl font-semibold mb-6">5-Day Forecast</h2>
+     <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="forecast-container">
+      </div>
+    </div>
+   </section>
+
+   <div id="status-message" class="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-full transition-transform duration-300 z-50">
+    <span id="status-text">Status message</span>
+   </div>
+  </main>
+  
+  <script>
+      // ⚠️ FIX: Jinja2 Parsing Fix for safe JSON data loading
+      const initialWeather = JSON.parse('{{ initial_weather | tojson | safe }}');
+
+      // Helper function to map weather description to emojis
+      function getWeatherIcon(description) {
+          const desc = description.toLowerCase();
+          if (desc.includes('clear')) return '☀️';
+          if (desc.includes('cloud')) return '☁️';
+          if (desc.includes('rain') || desc.includes('drizzle')) return '🌧️';
+          if (desc.includes('thunder')) return '⛈️';
+          if (desc.includes('snow')) return '🌨️';
+          if (desc.includes('mist') || desc.includes('fog')) return '🌫️';
+          return '❓';
+      }
+
+      function showLoading(show) {
+          document.getElementById('weather-content').classList.toggle('hidden', show);
+          document.getElementById('loading-state').classList.toggle('hidden', !show);
+          document.getElementById('refresh-btn').disabled = show;
+          document.getElementById('refresh-btn').classList.toggle('opacity-50', show);
+      }
+      
+      function showStatus(message, type = 'success') {
+          const statusEl = document.getElementById('status-message');
+          document.getElementById('status-text').textContent = message;
+          statusEl.className = `fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 z-50 text-white ${type === 'error' ? 'bg-red-600' : 'bg-green-600'}`;
+          statusEl.classList.remove('translate-y-full');
+          setTimeout(() => { statusEl.classList.add('translate-y-full'); }, 3000);
+      }
+
+      function updateClock() {
+          const now = new Date();
+          const timeString = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          const dateString = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+          document.getElementById('current-time').textContent = timeString;
+          document.getElementById('current-date').textContent = dateString;
+          document.getElementById('timezone').textContent = now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ')[2] || 'UTC'; 
+      }
+
+      function updateForecastDisplay(forecastData) {
+          const container = document.getElementById('forecast-container');
+          container.innerHTML = ''; 
+          
+          if (!forecastData || forecastData.length === 0) {
+              container.innerHTML = '<p class="text-gray-400">Forecast data not available.</p>';
+              return;
+          }
+          
+          forecastData.forEach(day => {
+              const forecastHTML = `
+                  <div class="text-center p-4 bg-gray-800 bg-opacity-50 rounded-lg weather-card-hover">
+                      <div class="text-sm text-gray-300 mb-2">${day.day}</div>
+                      <div class="text-2xl mb-2">${day.icon}</div>
+                      <div class="text-sm">
+                          <span class="font-semibold">${Math.round(day.high)}°C</span>
+                          <span class="text-gray-400 ml-1">${Math.round(day.low)}°C</span>
+                      </div>
+                  </div>
+              `;
+              container.innerHTML += forecastHTML;
+          });
+      }
+
+      function updateWeatherDisplay(data) {
+          // Error handling
+          if (data.error) {
+              document.getElementById('city-name').textContent = "Error";
+              document.getElementById('temperature').textContent = "—";
+              document.getElementById('weather-description').textContent = data.error;
+              document.getElementById('weather-icon').textContent = '❌';
+              // Details fields clear karein
+              document.getElementById('feels-like').textContent = '—';
+              document.getElementById('humidity').textContent = '—';
+              document.getElementById('wind-speed').textContent = '—';
+              document.getElementById('pressure').textContent = '—';
+              updateForecastDisplay(null);
+              return;
+          }
+
+          const current = data.current; // Python se ab data.current aur data.forecast aa raha hai
+          
+          // Update main weather info
+          document.getElementById('city-name').textContent = current.city;
+          document.getElementById('temperature').textContent = `${current.temperature}°C`;
+          document.getElementById('weather-description').textContent = current.description;
+          document.getElementById('weather-icon').textContent = current.icon; // Icon ab Python se aa raha hai
+          
+          // Update details
+          document.getElementById('feels-like').textContent = `${current.feels_like}°C`;
+          document.getElementById('humidity').textContent = `${current.humidity}%`;
+          // wind_speed ko toFixed(1) se display karein
+          document.getElementById('wind-speed').textContent = `${current.wind_speed.toFixed(1)} km/h`; 
+          document.getElementById('pressure').textContent = `${current.pressure} hPa`;
+          
+          // Update Forecast
+          updateForecastDisplay(data.forecast);
+      }
+      
+      async function searchWeather(isRefresh = false) {
+    // ... city search/encoding logic remains the same ...
+
+    showLoading(true);
+    const encodedCity = encodeURIComponent(cityToSearch);
+    
+    try {
+        // 🚨 CRITICAL CHANGE HERE: Hardcoded URL hata kar Relative Path use karein
+        const response = await fetch(`/weather?city=${encodedCity}`); 
+        
+        const data = await response.json(); 
+        
+        // ... baaki updateWeatherDisplay aur status message logic ...
+
+    } catch (error) {
+        // Ab yahan par error aayega agar Ngrok tunnel band ho gayi ho
+        console.error("Fetch Error:", error);
+        showStatus('Failed to connect to the server. (Try refreshing the page or restarting ngrok)', 'error');
+    } finally {
+        showLoading(false);
+        if (!isRefresh) cityInput.value = '';
+    }
+}
+
+      function handleSearchKeypress(event) {
+          if (event.key === 'Enter') {
+              searchWeather();
+          }
+      }
+      
+      // Initialization
+      document.addEventListener('DOMContentLoaded', function() {
+          updateClock();
+          setInterval(updateClock, 1000);
+          // Initial load par default data set karein
+          updateWeatherDisplay(initialWeather); 
+      });
+  </script>
+ </body>
+</html>
