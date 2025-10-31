@@ -1,45 +1,61 @@
-async function searchWeather() {
-    // Step 1: Input ko trim (spaces remove) karo
-    const rawCity = document.getElementById('city-search').value.trim();
+async function searchWeather(isRefresh = false) {
+    // Refresh par, hum current city name use karenge
+    const cityInput = document.getElementById('city-search');
+    const cityToSearch = isRefresh 
+        ? document.getElementById('city-name').textContent 
+        : cityInput.value.trim();
     
-    if (!rawCity) {
-        alert("Please enter a city name");
+    if (!cityToSearch || cityToSearch === "Error" || cityToSearch === "Loading...") {
+        // Assume you have a showStatus helper function
+        if (!isRefresh) showStatus('Please enter a valid city name', 'error'); 
         return;
     }
 
-    // Step 2: City name ko URL ke liye encode karo
-    const city = encodeURIComponent(rawCity); 
-    
-    // Optional: Loading state on karo (agar aapne HTML mein setup kiya hai)
-    // showLoading(true);
+    // Optional: Loading state on karo
+    // if (typeof showLoading === 'function') showLoading(true);
+
+    const encodedCity = encodeURIComponent(cityToSearch); 
 
     try {
-        // Fetch call mein encoded 'city' use karo
-        const response = await fetch(`http://127.0.0.1:5000/weather?city=${city}`);
+        // Note: Agar aap Ngrok pe the, toh URL ko sirf `/weather...` rakhein. Local host pe dono chalega.
+        const response = await fetch(`/weather?city=${encodedCity}`); 
         const data = await response.json();
 
-        if (data.error) {
-            // Agar OpenWeatherMap ko city nahi mili, toh aapka app.py 404 error dega
-            alert(`Error: ${data.error}. Please check the city spelling.`);
+        // Agar data.error hai ya data.current missing hai, toh error dikhao
+        if (data.error || !data.current) {
+            // Assume you have a showStatus helper function
+            showStatus(`Error: ${data.error || 'Data structure missing.'}`, 'error'); 
             return;
         }
+        
+        // 🚨 CRITICAL FIX: Data ko data.current se access karo
+        const current = data.current; 
 
         // Ab yahan apne HTML elements update karo
-        document.getElementById('city-name').innerText = data.city;
+        document.getElementById('city-name').innerText = current.city;
         
-        // Temperature ko round off karna accha lagta hai
-        document.getElementById('temperature').innerText = Math.round(data.temperature) + "°C"; 
-        document.getElementById('weather-description').innerText = data.description;
+        // Temperature, Feels Like, etc. ko current object se access karo
+        document.getElementById('temperature').innerText = current.temperature + "°C"; 
+        document.getElementById('weather-description').innerText = current.description;
         
-        document.getElementById('feels-like').innerText = Math.round(data.feels_like) + "°C";
-        document.getElementById('humidity').innerText = data.humidity + "%";
-        document.getElementById('wind-speed').innerText = data.wind_speed.toFixed(1) + " km/h";
+        document.getElementById('feels-like').innerText = current.feels_like + "°C";
+        document.getElementById('humidity').innerText = current.humidity + "%";
+        document.getElementById('wind-speed').innerText = current.wind_speed.toFixed(1) + " km/h";
+        
+        // 5-Day Forecast update function call karo
+        // (Assuming updateForecastDisplay function is defined elsewhere)
+        if (typeof updateForecastDisplay === 'function') {
+            updateForecastDisplay(data.forecast);
+        }
+
+        // Search successful hone par status message
+        // if (typeof showStatus === 'function') showStatus(`Weather updated for ${current.city}`, 'success');
 
     } catch (error) {
         console.error("Error fetching weather:", error);
-        alert("Failed to connect to the weather service.");
+        // if (typeof showStatus === 'function') showStatus("Failed to connect to the server.", 'error');
     } finally {
         // Optional: Loading state off karo
-        // showLoading(false);
+        // if (typeof showLoading === 'function') showLoading(false);
     }
 }

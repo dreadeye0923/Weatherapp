@@ -99,141 +99,161 @@
   </main>
   
   <script>
-      // ⚠️ FIX: Jinja2 Parsing Fix for safe JSON data loading
-      const initialWeather = JSON.parse('{{ initial_weather | tojson | safe }}');
+    // ⚠️ FIX: Jinja2 Parsing Fix for safe JSON data loading (Python se data load karne ke liye)
+    const initialWeather = JSON.parse('{{ initial_weather | tojson | safe }}');
 
-      // Helper function to map weather description to emojis
-      function getWeatherIcon(description) {
-          const desc = description.toLowerCase();
-          if (desc.includes('clear')) return '☀️';
-          if (desc.includes('cloud')) return '☁️';
-          if (desc.includes('rain') || desc.includes('drizzle')) return '🌧️';
-          if (desc.includes('thunder')) return '⛈️';
-          if (desc.includes('snow')) return '🌨️';
-          if (desc.includes('mist') || desc.includes('fog')) return '🌫️';
-          return '❓';
-      }
+    // --- Helper Functions ---
 
-      function showLoading(show) {
-          document.getElementById('weather-content').classList.toggle('hidden', show);
-          document.getElementById('loading-state').classList.toggle('hidden', !show);
-          document.getElementById('refresh-btn').disabled = show;
-          document.getElementById('refresh-btn').classList.toggle('opacity-50', show);
-      }
-      
-      function showStatus(message, type = 'success') {
-          const statusEl = document.getElementById('status-message');
-          document.getElementById('status-text').textContent = message;
-          statusEl.className = `fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 z-50 text-white ${type === 'error' ? 'bg-red-600' : 'bg-green-600'}`;
-          statusEl.classList.remove('translate-y-full');
-          setTimeout(() => { statusEl.classList.add('translate-y-full'); }, 3000);
-      }
-
-      function updateClock() {
-          const now = new Date();
-          const timeString = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          const dateString = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-          document.getElementById('current-time').textContent = timeString;
-          document.getElementById('current-date').textContent = dateString;
-          document.getElementById('timezone').textContent = now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ')[2] || 'UTC'; 
-      }
-
-      function updateForecastDisplay(forecastData) {
-          const container = document.getElementById('forecast-container');
-          container.innerHTML = ''; 
-          
-          if (!forecastData || forecastData.length === 0) {
-              container.innerHTML = '<p class="text-gray-400">Forecast data not available.</p>';
-              return;
-          }
-          
-          forecastData.forEach(day => {
-              const forecastHTML = `
-                  <div class="text-center p-4 bg-gray-800 bg-opacity-50 rounded-lg weather-card-hover">
-                      <div class="text-sm text-gray-300 mb-2">${day.day}</div>
-                      <div class="text-2xl mb-2">${day.icon}</div>
-                      <div class="text-sm">
-                          <span class="font-semibold">${Math.round(day.high)}°C</span>
-                          <span class="text-gray-400 ml-1">${Math.round(day.low)}°C</span>
-                      </div>
-                  </div>
-              `;
-              container.innerHTML += forecastHTML;
-          });
-      }
-
-      function updateWeatherDisplay(data) {
-          // Error handling
-          if (data.error) {
-              document.getElementById('city-name').textContent = "Error";
-              document.getElementById('temperature').textContent = "—";
-              document.getElementById('weather-description').textContent = data.error;
-              document.getElementById('weather-icon').textContent = '❌';
-              // Details fields clear karein
-              document.getElementById('feels-like').textContent = '—';
-              document.getElementById('humidity').textContent = '—';
-              document.getElementById('wind-speed').textContent = '—';
-              document.getElementById('pressure').textContent = '—';
-              updateForecastDisplay(null);
-              return;
-          }
-
-          const current = data.current; // Python se ab data.current aur data.forecast aa raha hai
-          
-          // Update main weather info
-          document.getElementById('city-name').textContent = current.city;
-          document.getElementById('temperature').textContent = `${current.temperature}°C`;
-          document.getElementById('weather-description').textContent = current.description;
-          document.getElementById('weather-icon').textContent = current.icon; // Icon ab Python se aa raha hai
-          
-          // Update details
-          document.getElementById('feels-like').textContent = `${current.feels_like}°C`;
-          document.getElementById('humidity').textContent = `${current.humidity}%`;
-          // wind_speed ko toFixed(1) se display karein
-          document.getElementById('wind-speed').textContent = `${current.wind_speed.toFixed(1)} km/h`; 
-          document.getElementById('pressure').textContent = `${current.pressure} hPa`;
-          
-          // Update Forecast
-          updateForecastDisplay(data.forecast);
-      }
-      
-      async function searchWeather(isRefresh = false) {
-    // ... city search/encoding logic remains the same ...
-
-    showLoading(true);
-    const encodedCity = encodeURIComponent(cityToSearch);
-    
-    try {
-        // 🚨 CRITICAL CHANGE HERE: Hardcoded URL hata kar Relative Path use karein
-        const response = await fetch(`/weather?city=${encodedCity}`); 
-        
-        const data = await response.json(); 
-        
-        // ... baaki updateWeatherDisplay aur status message logic ...
-
-    } catch (error) {
-        // Ab yahan par error aayega agar Ngrok tunnel band ho gayi ho
-        console.error("Fetch Error:", error);
-        showStatus('Failed to connect to the server. (Try refreshing the page or restarting ngrok)', 'error');
-    } finally {
-        showLoading(false);
-        if (!isRefresh) cityInput.value = '';
+    // Helper function to map weather description to emojis (used by Python via current.icon)
+    function getWeatherIcon(description) {
+        const desc = description.toLowerCase();
+        if (desc.includes('clear')) return '☀️';
+        if (desc.includes('cloud')) return '☁️';
+        if (desc.includes('rain') || desc.includes('drizzle')) return '🌧️';
+        if (desc.includes('thunder')) return '⛈️';
+        if (desc.includes('snow')) return '🌨️';
+        if (desc.includes('mist') || desc.includes('fog')) return '🌫️';
+        return '❓';
     }
-}
 
-      function handleSearchKeypress(event) {
-          if (event.key === 'Enter') {
-              searchWeather();
-          }
-      }
-      
-      // Initialization
-      document.addEventListener('DOMContentLoaded', function() {
-          updateClock();
-          setInterval(updateClock, 1000);
-          // Initial load par default data set karein
-          updateWeatherDisplay(initialWeather); 
-      });
-  </script>
+    function showLoading(show) {
+        document.getElementById('weather-content').classList.toggle('hidden', show);
+        document.getElementById('loading-state').classList.toggle('hidden', !show);
+        document.getElementById('refresh-btn').disabled = show;
+        document.getElementById('refresh-btn').classList.toggle('opacity-50', show);
+    }
+    
+    function showStatus(message, type = 'success') {
+        const statusEl = document.getElementById('status-message');
+        document.getElementById('status-text').textContent = message;
+        statusEl.className = `fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 z-50 text-white ${type === 'error' ? 'bg-red-600' : 'bg-green-600'}`;
+        statusEl.classList.remove('translate-y-full');
+        setTimeout(() => { statusEl.classList.add('translate-y-full'); }, 3000);
+    }
+
+    function updateClock() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const dateString = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('current-time').textContent = timeString;
+        document.getElementById('current-date').textContent = dateString;
+        document.getElementById('timezone').textContent = now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ')[2] || 'UTC'; 
+    }
+    
+    // --- Forecast Display ---
+    function updateForecastDisplay(forecastData) {
+        const container = document.getElementById('forecast-container');
+        container.innerHTML = ''; 
+        
+        if (!forecastData || forecastData.length === 0) {
+            container.innerHTML = '<p class="text-gray-400">Forecast data not available.</p>';
+            return;
+        }
+        
+        forecastData.forEach(day => {
+            const forecastHTML = `
+                <div class="text-center p-4 bg-gray-800 bg-opacity-50 rounded-lg weather-card-hover">
+                    <div class="text-sm text-gray-300 mb-2">${day.day}</div>
+                    <div class="text-2xl mb-2">${day.icon}</div>
+                    <div class="text-sm">
+                        <span class="font-semibold">${Math.round(day.high)}°C</span>
+                        <span class="text-gray-400 ml-1">${Math.round(day.low)}°C</span>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += forecastHTML;
+        });
+    }
+
+    // --- Main Display Update ---
+    function updateWeatherDisplay(data) {
+        const current = data.current; 
+
+        // Error handling
+        if (data.error || !current) {
+            document.getElementById('city-name').textContent = "Error";
+            document.getElementById('temperature').textContent = "—";
+            document.getElementById('weather-description').textContent = data.error || 'Data structure error';
+            document.getElementById('weather-icon').textContent = '❌';
+            document.getElementById('feels-like').textContent = '—';
+            document.getElementById('humidity').textContent = '—';
+            document.getElementById('wind-speed').textContent = '—';
+            document.getElementById('pressure').textContent = '—';
+            updateForecastDisplay(null);
+            return;
+        }
+        
+        // Update main weather info
+        document.getElementById('city-name').textContent = current.city;
+        document.getElementById('temperature').textContent = `${current.temperature}°C`;
+        document.getElementById('weather-description').textContent = current.description;
+        document.getElementById('weather-icon').textContent = current.icon;
+        
+        // Update details
+        document.getElementById('feels-like').textContent = `${current.feels_like}°C`;
+        document.getElementById('humidity').textContent = `${current.humidity}%`;
+        document.getElementById('wind-speed').textContent = `${current.wind_speed.toFixed(1)} km/h`;
+        document.getElementById('pressure').textContent = `${current.pressure} hPa`;
+        
+        // Update Forecast
+        updateForecastDisplay(data.forecast);
+    }
+    
+    // --- Search Function (Fixes Missing Logic) ---
+    async function searchWeather(isRefresh = false) {
+        // 🚨 FIX: Missing logic added here
+        const cityInput = document.getElementById('city-search');
+        const cityToSearch = isRefresh 
+            ? document.getElementById('city-name').textContent.trim()
+            : cityInput.value.trim();
+        
+        if (!cityToSearch || cityToSearch === "Error" || cityToSearch === "Loading...") {
+            if (!isRefresh) showStatus('Please enter a valid city name', 'error');
+            return;
+        }
+        const encodedCity = encodeURIComponent(cityToSearch);
+        
+        showLoading(true);
+
+        try {
+            // Relative path: Localhost aur Ngrok dono par kaam karega
+            const response = await fetch(`/weather?city=${encodedCity}`); 
+            const data = await response.json(); 
+
+            // Console log for debugging
+            console.log("Search Success. Data received:", data); 
+
+            updateWeatherDisplay(data);
+            
+            if (data.error) {
+                showStatus(`Search failed: ${data.error}`, 'error');
+            } else {
+                showStatus(`Weather updated for ${data.current.city}`, 'success');
+            }
+
+        } catch (error) {
+            console.error("Fetch Error: Could not parse response JSON or connect.", error);
+            showStatus('Failed to connect to the Flask server.', 'error');
+        } finally {
+            showLoading(false);
+            if (!isRefresh) cityInput.value = '';
+        }
+    }
+
+    // --- Event Handlers ---
+    function handleSearchKeypress(event) {
+        if (event.key === 'Enter') {
+            searchWeather();
+        }
+    }
+    
+    // --- Initialization ---
+    document.addEventListener('DOMContentLoaded', function() {
+        updateClock();
+        setInterval(updateClock, 1000);
+        // Initial load par default data set karein
+        updateWeatherDisplay(initialWeather); 
+    });
+</script>
  </body>
 </html>
